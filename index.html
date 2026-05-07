@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Practice Rep Tagger — RMC 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #root { height: 100%; overflow: hidden; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f1f3; }
+  input:focus, button:focus { outline: 2px solid #1a4b8c; outline-offset: 1px; }
+  button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #bbb; border-radius: 3px; }
+  .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .roster-table th { text-align: left; padding: 8px 10px; background: #f5f5f7; border-bottom: 2px solid #ddd; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; position: sticky; top: 0; z-index: 1; }
+  .roster-table td { padding: 6px 10px; border-bottom: 1px solid #eee; }
+  .roster-table tr:hover td { background: #f0f4fa; }
+  .jersey-input { width: 52px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; font-weight: 700; text-align: center; }
+  .jersey-input:focus { border-color: #1a4b8c; }
+  .sob-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; color: #fff; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const NAVY = "#002C5F";
+const BLUE = "#1a4b8c";
+const MID_GRAY = "#c4c7cc";
+const RED = "#c62828";
+
+const BAKED_ROSTER = [
+  {id:1,jersey:"1",name:"CLIFFORD, LIAM",position:"WR",school:"PENN ST",sob:"OFF"},
+  {id:2,jersey:"2",name:"RUDOLPH, TRAYVON",position:"WR",school:"TOLEDO",sob:"OFF"},
+  {id:3,jersey:"4",name:"HENIGAN, SETH",position:"QB",school:"MEMPHIS",sob:"OFF"},
+  {id:4,jersey:"7",name:"SHAPEN, BLAKE",position:"QB",school:"MISSISSIPPI ST",sob:"OFF"},
+  {id:5,jersey:"8",name:"SHARPE, RAYLEN",position:"WR",school:"ARKANSAS",sob:"OFF"},
+  {id:6,jersey:"9",name:"OWEN, COLEMAN",position:"WR",school:"OHIO",sob:"OFF"},
+  {id:7,jersey:"10",name:"HORTON, E J",position:"WR",school:"PURDUE",sob:"OFF"},
+  {id:8,jersey:"11",name:"HAGANS, SAHMIR",position:"WR",school:"DUKE",sob:"OFF"},
+  {id:9,jersey:"20",name:"MCGOWAN, SETH",position:"RB",school:"KENTUCKY",sob:"OFF"},
+  {id:10,jersey:"21",name:"CASTLE, ANDERSON",position:"RB",school:"DUKE",sob:"OFF"},
+  {id:11,jersey:"36",name:"PARE, LINCOLN",position:"RB",school:"TEXAS ST",sob:"OFF"},
+  {id:12,jersey:"37",name:"BENTLEY, ULYSSES",position:"RB",school:"MISSISSIPPI",sob:"OFF"},
+  {id:13,jersey:"42",name:"VAUGHN, JORDON",position:"RB",school:"ABILENE CHRISTIAN",sob:"OFF"},
+  {id:14,jersey:"45",name:"TOWT, CARSON",position:"TE",school:"NOTRE DAME",sob:"OFF"},
+  {id:15,jersey:"46",name:"HANIKA, DESHAWN",position:"TE",school:"KANSAS",sob:"OFF"},
+  {id:16,jersey:"61",name:"BUXTON, THOMAS",position:"OG",school:"RHODE ISLAND",sob:"OFF"},
+  {id:17,jersey:"62",name:"FARMER, JALEN",position:"OG",school:"KENTUCKY",sob:"OFF"},
+  {id:18,jersey:"63",name:"VANDEMARK, GENO",position:"OC",school:"ALABAMA",sob:"OFF"},
+  {id:19,jersey:"65",name:"DEVINE, ANDREW",position:"OT",school:"CARROLL",sob:"OFF"},
+  {id:20,jersey:"66",name:"HULET, GAVIN",position:"OT",school:"LINDENWOOD",sob:"OFF"},
+  {id:21,jersey:"68",name:"LAPUAHO, WEYLIN",position:"OC",school:"BRIGHAM YOUNG",sob:"OFF"},
+  {id:22,jersey:"69",name:"HENDERSON, LADARIUS",position:"OG",school:"MICHIGAN",sob:"OFF"},
+  {id:23,jersey:"71",name:"ZILINSKAS, GUS",position:"OC",school:"RUTGERS",sob:"OFF"},
+  {id:24,jersey:"76",name:"RUCCI, NOLAN",position:"OT",school:"PENN ST",sob:"OFF"},
+  {id:25,jersey:"80",name:"BURKS, DEION",position:"WR",school:"OKLAHOMA",sob:"OFF"},
+  {id:26,jersey:"81",name:"HEATHERLY, KALEB",position:"TE",school:"NORTH ALABAMA",sob:"OFF"},
+  {id:27,jersey:"83",name:"LANE, BROC",position:"TE",school:"UTAH ST",sob:"OFF"},
+  {id:28,jersey:"85",name:"BALLARD, JAYDEN",position:"WR",school:"WISCONSIN",sob:"OFF"},
+  {id:29,jersey:"86",name:"SHULIKOV, MICHAEL",position:"TE",school:"IDAHO ST",sob:"OFF"},
+  {id:30,jersey:"3",name:"JUNKO, CALEB",position:"PT",school:"PITTSBURGH",sob:"SPT"},
+  {id:31,jersey:"6",name:"RUELAS, NOE",position:"PK",school:"CENTRAL FLORIDA",sob:"SPT"},
+  {id:32,jersey:"23",name:"JOHNSON, RODNEY",position:"DC",school:"LOUISVILLE",sob:"DEF"},
+  {id:33,jersey:"25",name:"HAULCY, A J",position:"DS",school:"LOUISIANA ST",sob:"DEF"},
+  {id:34,jersey:"26",name:"MCMILLAN, JAI'ONTE'",position:"DC",school:"MINNESOTA",sob:"DEF"},
+  {id:35,jersey:"27",name:"RIOS, JADEN",position:"DC",school:"TEXAS ST",sob:"DEF"},
+  {id:36,jersey:"29",name:"RODGERS, MEKHI",position:"DC",school:"JAMES MADISON",sob:"DEF"},
+  {id:37,jersey:"30",name:"BLAYLOCK, TAYLEN",position:"DS",school:"FURMAN",sob:"DEF"},
+  {id:38,jersey:"31",name:"BROWN, AUSTIN",position:"DS",school:"WISCONSIN",sob:"DEF"},
+  {id:39,jersey:"32",name:"MCGHEE, ZAYTEAK",position:"DC",school:"HOUSTON CHRISTIAN",sob:"DEF"},
+  {id:40,jersey:"34",name:"SANGMUAH, BEN",position:"DS",school:"BRITISH COLUMBIA",sob:"DEF"},
+  {id:41,jersey:"35",name:"WESTON, STEVEN",position:"DC",school:"OUACHITA BAPTIST",sob:"DEF"},
+  {id:42,jersey:"39",name:"CARTER, ROBERT",position:"DC",school:"ROBERT MORRIS",sob:"DEF"},
+  {id:43,jersey:"40",name:"BANKS, TYLER",position:"LB",school:"MISSISSIPPI",sob:"DEF"},
+  {id:44,jersey:"41",name:"ODELUGA, KENENNA",position:"LB",school:"ILLINOIS",sob:"DEF"},
+  {id:45,jersey:"42",name:"EKELER, WYETT",position:"DC",school:"WYOMING",sob:"DEF"},
+  {id:46,jersey:"44",name:"CHAMBERS, TAHJ",position:"LB",school:"MISSISSIPPI",sob:"DEF"},
+  {id:47,jersey:"47",name:"WEEKS, WEST",position:"LB",school:"LOUISIANA ST",sob:"DEF"},
+  {id:48,jersey:"48",name:"VERESUK, DEVIN",position:"LB",school:"WINDSOR",sob:"DEF"},
+  {id:49,jersey:"50",name:"BOETTCHER, BRYCE",position:"LB",school:"OREGON",sob:"DEF"},
+  {id:50,jersey:"52",name:"GUMBS, GEORGE",position:"DE",school:"FLORIDA",sob:"DEF"},
+  {id:51,jersey:"53",name:"ALLEN, C J",position:"LB",school:"GEORGIA",sob:"DEF"},
+  {id:52,jersey:"54",name:"MELTON, MITCHELL",position:"DE",school:"VIRGINIA",sob:"DEF"},
+  {id:53,jersey:"55",name:"CURRY, CADEN",position:"DE",school:"OHIO ST",sob:"DEF"},
+  {id:54,jersey:"58",name:"RUSSO-BELL, BEN",position:"DE",school:"VIRGINIA TECH",sob:"DEF"},
+  {id:55,jersey:"59",name:"ROBINSON, BRYCE",position:"LS",school:"VIRGINIA",sob:"SPT"},
+  {id:56,jersey:"64",name:"BALL, CAM",position:"DT",school:"ARKANSAS",sob:"DEF"},
+  {id:57,jersey:"92",name:"WOOD, ZAYLIN",position:"DE",school:"VANDERBILT",sob:"DEF"},
+  {id:58,jersey:"93",name:"SMITH, TIM",position:"DT",school:"ALABAMA",sob:"DEF"},
+  {id:59,jersey:"96",name:"SPEARS, SHAQ",position:"DT",school:"SMU",sob:"DEF"},
+  {id:60,jersey:"97",name:"SMITH, DAMONTE",position:"DT",school:"MIDDLE TENNESSEE ST",sob:"DEF"},
+];
+
+const OFF_ORDER=["QB","RB","FB","HB","WR","TE","OL","OT","OG","OC","C","T","G"];
+const DEF_ORDER=["DL","DE","DT","NT","EDGE","LB","ILB","OLB","MLB","DC","DS","CB","S","FS","SS","DB"];
+const SPT_ORDER=["K","PK","P","PT","LS"];
+const SOB_LABELS={OFF:"Offense",DEF:"Defense",SPT:"Special Teams"};
+const SOB_COLORS={OFF:"#1565c0",DEF:"#c62828",SPT:"#6a1b9a"};
+
+function makeDefaultPeriod(n){return{periodNumber:n,periodName:"",plays:[{selected:[]}]};}
+
+const STORE_KEY="rmc-rep-tagger-2026";
+function saveToStorage(d){try{localStorage.setItem(STORE_KEY,JSON.stringify(d));}catch{}}
+function loadFromStorage(){try{const r=localStorage.getItem(STORE_KEY);return r?JSON.parse(r):null;}catch{return null;}}
+function clearStorage(){try{localStorage.removeItem(STORE_KEY);}catch{}}
+
+function groupByPosition(players){
+  const g={};
+  players.forEach(p=>{const pos=p.position||"OTHER";if(!g[pos])g[pos]=[];g[pos].push(p);});
+  Object.values(g).forEach(a=>a.sort((a,b)=>(parseInt(a.jersey)||999)-(parseInt(b.jersey)||999)));
+  return g;
+}
+function groupBySOB(players){
+  const g={OFF:[],DEF:[],SPT:[]};
+  players.forEach(p=>{const s=p.sob||"OFF";if(!g[s])g[s]=[];g[s].push(p);});
+  Object.values(g).forEach(a=>a.sort((a,b)=>(parseInt(a.jersey)||999)-(parseInt(b.jersey)||999)));
+  return g;
+}
+
+function ConfirmModal({message,confirmLabel,onConfirm,onCancel}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.45)"}}>
+      <div style={{background:"#fff",borderRadius:8,padding:"28px 32px",maxWidth:420,width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+        <div style={{fontSize:15,fontWeight:600,color:"#222",marginBottom:20,lineHeight:1.5}}>{message}</div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10}}>
+          <button onClick={onCancel} style={{padding:"8px 20px",fontSize:13,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#f0f0f0",color:"#444",border:"1px solid #ccc"}}>Cancel</button>
+          <button onClick={onConfirm} style={{padding:"8px 20px",fontSize:13,fontWeight:700,borderRadius:4,cursor:"pointer",background:RED,color:"#fff",border:"none"}}>{confirmLabel||"Confirm"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerTile({player,selected,onToggle}){
+  return(
+    <div onClick={()=>onToggle(player.id)} style={{
+      width:48,height:48,display:"flex",alignItems:"center",justifyContent:"center",
+      borderRadius:4,cursor:"pointer",fontWeight:700,fontSize:16,userSelect:"none",transition:"all 0.1s",
+      background:selected?NAVY:"#fff",color:selected?"#fff":"#222",
+      border:selected?"2px solid "+NAVY:"2px solid "+MID_GRAY,
+      boxShadow:selected?"0 2px 4px rgba(0,0,0,0.2)":"0 1px 2px rgba(0,0,0,0.06)",
+    }} title={player.jersey+" - "+player.name+" ("+player.position+")"}>
+      {player.jersey}
+    </div>
+  );
+}
+
+function PracticeRepTagger(){
+  const[phase,setPhase]=useState("setup");
+  const[roster,setRoster]=useState(BAKED_ROSTER.map(p=>({...p})));
+  const[sessionName,setSessionName]=useState("");
+  const[userSOB,setUserSOB]=useState("OFF");
+  const[periods,setPeriods]=useState([makeDefaultPeriod(1)]);
+  const[curPeriod,setCurPeriod]=useState(0);
+  const[curPlay,setCurPlay]=useState(0);
+  const[viewMode,setViewMode]=useState("all");
+  const[loaded,setLoaded]=useState(false);
+  const[showResetConfirm,setShowResetConfirm]=useState(false);
+  const[rosterFilter,setRosterFilter]=useState("ALL");
+
+  useEffect(()=>{
+    const saved=loadFromStorage();
+    if(saved&&saved.roster&&saved.roster.length>0&&saved.phase==="working"){
+      setRoster(saved.roster);setSessionName(saved.sessionName||"");setUserSOB(saved.userSOB||"OFF");
+      setPeriods(saved.periods||[makeDefaultPeriod(1)]);setCurPeriod(saved.curPeriod||0);
+      setCurPlay(saved.curPlay||0);setViewMode(saved.viewMode||"all");setPhase("working");
+    }
+    setLoaded(true);
+  },[]);
+
+  const saveTimeout=useRef(null);
+  useEffect(()=>{
+    if(!loaded||phase!=="working")return;
+    clearTimeout(saveTimeout.current);
+    saveTimeout.current=setTimeout(()=>{
+      saveToStorage({roster,sessionName,userSOB,periods,curPeriod,curPlay,viewMode,phase});
+    },300);
+  },[roster,sessionName,userSOB,periods,curPeriod,curPlay,viewMode,phase,loaded]);
+
+  const updateJersey=(id,val)=>setRoster(prev=>prev.map(p=>p.id===id?{...p,jersey:val}:p));
+
+  const currentPeriod=periods[curPeriod];
+  const currentPlay=currentPeriod&&currentPeriod.plays&&currentPeriod.plays[curPlay];
+  const selectedIds=new Set(currentPlay?currentPlay.selected:[]);
+  const totalSelectedCount=selectedIds.size;
+
+  const togglePlayer=(id)=>{
+    setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));const p=n[curPeriod].plays[curPlay];const i=p.selected.indexOf(id);if(i>=0)p.selected.splice(i,1);else p.selected.push(id);return n;});
+  };
+  const clearGroup=(ids)=>{
+    const s=new Set(ids);
+    setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays[curPlay].selected=n[curPeriod].plays[curPlay].selected.filter(id=>!s.has(id));return n;});
+  };
+  const clearAll=()=>{setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays[curPlay].selected=[];return n;});};
+
+  const addBlankPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:[]});return n;});setCurPlay(len);};
+  const copyPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:n[curPeriod].plays[curPlay].selected.slice()});return n;});setCurPlay(len);};
+  const deletePlay=()=>{if(currentPeriod.plays.length<=1){clearAll();return;}const ni=Math.min(curPlay,currentPeriod.plays.length-2);setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.splice(curPlay,1);return n;});setCurPlay(ni);};
+
+  const addPeriod=()=>{const mx=Math.max.apply(null,periods.map(p=>p.periodNumber).concat([0]));const len=periods.length;setPeriods(prev=>prev.concat([makeDefaultPeriod(mx+1)]));setCurPeriod(len);setCurPlay(0);};
+  const deletePeriod=()=>{if(periods.length<=1)return;const ni=Math.max(0,curPeriod-1);setPeriods(prev=>{const n=prev.slice();n.splice(curPeriod,1);return n;});setCurPeriod(ni);setCurPlay(0);};
+  const updatePeriodField=(f,v)=>{setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod][f]=f==="periodNumber"?(parseInt(v)||0):v;return n;});};
+
+  const idToJersey={};roster.forEach(p=>{idToJersey[p.id]=p.jersey;});
+
+  const exportCSV=()=>{
+    const rows=["PeriodNumber,Period,Play,Offense,Defense"];
+    periods.forEach(period=>{period.plays.forEach((play,pi)=>{
+      const jerseys=play.selected.map(id=>idToJersey[id]||"").filter(Boolean).sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0)).join(";");
+      const off=userSOB==="OFF"?jerseys:"";const def=userSOB==="DEF"?jerseys:"";
+      rows.push(period.periodNumber+","+period.periodName+","+(pi+1)+","+off+","+def);
+    });});
+    const blob=new Blob([rows.join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;
+    a.download=(sessionName||"RMC").replace(/\s+/g,"_")+"_"+(userSOB==="OFF"?"OFFENSE":"DEFENSE")+"_PLAYS.csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  };
+
+  const doReset=()=>{clearStorage();setPhase("setup");setRoster(BAKED_ROSTER.map(p=>({...p})));setSessionName("");setPeriods([makeDefaultPeriod(1)]);setCurPeriod(0);setCurPlay(0);setShowResetConfirm(false);};
+
+  // ═══ SETUP ═══
+  if(phase==="setup"){
+    return(
+      <div style={{height:"100%",background:"#f5f5f5",overflow:"auto"}}>
+        <div style={{background:NAVY,padding:"16px 24px",color:"#fff",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontWeight:800,fontSize:18,letterSpacing:0.5}}>PRACTICE REP TAGGER</div>
+          <div style={{fontSize:12,opacity:0.7,marginLeft:8}}>RMC 2026</div>
+        </div>
+        <div style={{maxWidth:480,margin:"60px auto",padding:32,background:"#fff",borderRadius:8,boxShadow:"0 2px 12px rgba(0,0,0,0.08)"}}>
+          <h2 style={{margin:"0 0 24px",fontSize:20,fontWeight:700,color:"#222"}}>Session Setup</h2>
+          <label style={{display:"block",marginBottom:6,fontWeight:600,fontSize:13,color:"#555"}}>Session Name</label>
+          <input type="text" value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="e.g. RMC01"
+            style={{width:"100%",padding:"10px 12px",border:"1px solid "+MID_GRAY,borderRadius:4,fontSize:14,marginBottom:20}}/>
+          <label style={{display:"block",marginBottom:6,fontWeight:600,fontSize:13,color:"#555"}}>Your Side of Ball</label>
+          <div style={{display:"flex",gap:0,marginBottom:28}}>
+            {["OFF","DEF"].map(s=>(
+              <button key={s} onClick={()=>setUserSOB(s)} style={{
+                padding:"10px 28px",fontWeight:700,fontSize:14,cursor:"pointer",
+                border:"2px solid "+NAVY,borderRadius:s==="OFF"?"4px 0 0 4px":"0 4px 4px 0",
+                background:userSOB===s?NAVY:"#fff",color:userSOB===s?"#fff":NAVY,
+              }}>{s==="OFF"?"Offense":"Defense"}</button>
+            ))}
+          </div>
+          <div style={{fontSize:13,color:"#666",marginBottom:20}}>{roster.length} players loaded. Review &amp; edit jerseys on the next screen.</div>
+          <button disabled={!sessionName.trim()} onClick={()=>setPhase("roster")} style={{
+            width:"100%",padding:"12px 0",fontWeight:700,fontSize:15,borderRadius:4,border:"none",cursor:"pointer",
+            background:!sessionName.trim()?MID_GRAY:NAVY,color:"#fff",opacity:!sessionName.trim()?0.5:1,
+          }}>Review Roster →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══ ROSTER REVIEW ═══
+  if(phase==="roster"){
+    const filtered=rosterFilter==="ALL"?roster:roster.filter(p=>p.sob===rosterFilter);
+    const counts={ALL:roster.length,OFF:0,DEF:0,SPT:0};roster.forEach(p=>{if(counts[p.sob]!==undefined)counts[p.sob]++;});
+    return(
+      <div style={{height:"100%",background:"#f5f5f5",display:"flex",flexDirection:"column"}}>
+        <div style={{background:NAVY,padding:"12px 24px",color:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <div style={{fontWeight:800,fontSize:16,letterSpacing:0.5}}>ROSTER REVIEW</div>
+            <div style={{fontSize:12,opacity:0.6}}>{sessionName}</div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setPhase("setup")} style={{padding:"6px 16px",fontSize:13,fontWeight:600,borderRadius:4,cursor:"pointer",background:"transparent",color:"#fff",border:"1px solid rgba(255,255,255,0.3)"}}>← Back</button>
+            <button onClick={()=>setPhase("working")} style={{padding:"6px 20px",fontSize:13,fontWeight:700,borderRadius:4,cursor:"pointer",background:"#2e7d32",color:"#fff",border:"none"}}>Start Tagging →</button>
+          </div>
+        </div>
+        <div style={{padding:"10px 24px",background:"#fff",borderBottom:"1px solid #ddd",display:"flex",gap:4,flexShrink:0}}>
+          {["ALL","OFF","DEF","SPT"].map(f=>(
+            <button key={f} onClick={()=>setRosterFilter(f)} style={{
+              padding:"5px 14px",fontSize:12,fontWeight:700,borderRadius:4,cursor:"pointer",
+              background:rosterFilter===f?NAVY:"#f0f0f0",color:rosterFilter===f?"#fff":"#444",
+              border:rosterFilter===f?"1px solid "+NAVY:"1px solid #ccc",
+            }}>{f==="ALL"?"All":SOB_LABELS[f]} ({counts[f]})</button>
+          ))}
+        </div>
+        <div style={{flex:1,overflow:"auto",padding:"0 24px 24px"}}>
+          <table className="roster-table">
+            <thead><tr>
+              <th style={{width:70}}>#</th><th>Name</th><th style={{width:60}}>Pos</th><th>School</th><th style={{width:80}}>SOB</th>
+            </tr></thead>
+            <tbody>
+              {filtered.map(p=>(
+                <tr key={p.id}>
+                  <td><input className="jersey-input" type="text" value={p.jersey} onChange={e=>updateJersey(p.id,e.target.value)}/></td>
+                  <td style={{fontWeight:600}}>{p.name}</td>
+                  <td>{p.position}</td>
+                  <td style={{color:"#666"}}>{p.school}</td>
+                  <td><span className="sob-badge" style={{background:SOB_COLORS[p.sob]||"#888"}}>{p.sob}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══ WORKING ═══
+  const renderPlayerArea=()=>{
+    const allSorted=roster.slice().sort((a,b)=>(parseInt(a.jersey)||999)-(parseInt(b.jersey)||999));
+    if(viewMode==="all"){
+      return(<div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{fontWeight:700,fontSize:14,color:"#444"}}>All Players ({roster.filter(p=>selectedIds.has(p.id)).length})</div>
+          <button onClick={clearAll} style={{fontSize:12,color:RED,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>× Clear</button>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {allSorted.map(p=><PlayerTile key={p.id} player={p} selected={selectedIds.has(p.id)} onToggle={togglePlayer}/>)}
+        </div>
+      </div>);
+    }
+    if(viewMode==="sob"){
+      const groups=groupBySOB(roster);
+      return(<div style={{display:"flex",flexDirection:"column",gap:20}}>
+        {["OFF","DEF","SPT"].filter(s=>groups[s]&&groups[s].length).map(s=>{
+          const gids=groups[s].map(p=>p.id);const sc=gids.filter(id=>selectedIds.has(id)).length;
+          return(<div key={s} style={{background:"#f9f9fa",borderRadius:6,padding:"12px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div style={{fontWeight:700,fontSize:14,color:"#444"}}>{SOB_LABELS[s]} ({sc})</div>
+              <button onClick={()=>clearGroup(gids)} style={{fontSize:12,color:RED,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>× Clear</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{groups[s].map(p=><PlayerTile key={p.id} player={p} selected={selectedIds.has(p.id)} onToggle={togglePlayer}/>)}</div>
+          </div>);
+        })}
+      </div>);
+    }
+    if(viewMode==="pos"){
+      const groups=groupByPosition(roster);
+      const allKeys=[].concat(OFF_ORDER,DEF_ORDER,SPT_ORDER,Object.keys(groups));
+      const seen={};const orderedKeys=allKeys.filter(k=>{if(seen[k]||!groups[k]||!groups[k].length)return false;seen[k]=true;return true;});
+      return(<div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {orderedKeys.map(pos=>{
+          const gids=groups[pos].map(p=>p.id);const sc=gids.filter(id=>selectedIds.has(id)).length;
+          return(<div key={pos} style={{background:"#f9f9fa",borderRadius:6,padding:"10px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#555"}}>{pos} ({sc})</div>
+              <button onClick={()=>clearGroup(gids)} style={{fontSize:11,color:RED,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>× Clear</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{groups[pos].map(p=><PlayerTile key={p.id} player={p} selected={selectedIds.has(p.id)} onToggle={togglePlayer}/>)}</div>
+          </div>);
+        })}
+      </div>);
+    }
+  };
+
+  const totalPlays=periods.reduce((s,p)=>s+p.plays.length,0);
+
+  return(
+    <div style={{height:"100vh",background:"#f0f1f3",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {showResetConfirm&&<ConfirmModal message="Reset entire session? This clears all periods, plays, and jersey edits. This cannot be undone." confirmLabel="Reset" onConfirm={doReset} onCancel={()=>setShowResetConfirm(false)}/>}
+      <div style={{background:NAVY,padding:"10px 20px",color:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:16}}>
+          <div style={{fontWeight:800,fontSize:16,letterSpacing:0.5}}>PRACTICE REP TAGGER</div>
+          <div style={{fontSize:12,opacity:0.6}}>RMC 2026</div>
+          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:4,padding:"4px 10px",fontSize:13,fontWeight:600}}>{sessionName}</div>
+          <div style={{background:userSOB==="OFF"?"#1565c0":"#c62828",borderRadius:4,padding:"4px 10px",fontSize:12,fontWeight:700}}>{userSOB==="OFF"?"OFFENSE":"DEFENSE"}</div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={exportCSV} style={{padding:"6px 16px",background:"#2e7d32",color:"#fff",border:"none",borderRadius:4,cursor:"pointer",fontWeight:600,fontSize:13}}>Export CSV</button>
+          <button onClick={()=>setShowResetConfirm(true)} style={{padding:"6px 14px",background:"rgba(255,255,255,0.12)",color:"#fff",border:"1px solid rgba(255,255,255,0.25)",borderRadius:4,cursor:"pointer",fontWeight:600,fontSize:12}}>Reset</button>
+        </div>
+      </div>
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+        <div style={{width:240,background:"#fff",borderRight:"1px solid #ddd",display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{padding:"14px 14px 10px",borderBottom:"1px solid #eee",flexShrink:0}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Period</div>
+            <div style={{display:"flex",gap:6,marginBottom:8}}>
+              <div style={{flex:"0 0 56px"}}>
+                <label style={{fontSize:10,color:"#888",fontWeight:600}}>#</label>
+                <input type="number" value={currentPeriod?currentPeriod.periodNumber:""} onChange={e=>updatePeriodField("periodNumber",e.target.value)} style={{width:"100%",padding:"6px 4px",border:"1px solid "+MID_GRAY,borderRadius:3,fontSize:13,textAlign:"center"}}/>
+              </div>
+              <div style={{flex:1}}>
+                <label style={{fontSize:10,color:"#888",fontWeight:600}}>Name</label>
+                <input type="text" value={currentPeriod?currentPeriod.periodName:""} placeholder="TEAM F1" onChange={e=>updatePeriodField("periodName",e.target.value)} style={{width:"100%",padding:"6px 8px",border:"1px solid "+MID_GRAY,borderRadius:3,fontSize:13}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={addPeriod} style={{flex:1,padding:"5px 0",fontSize:11,fontWeight:600,background:NAVY,color:"#fff",border:"none",borderRadius:3,cursor:"pointer"}}>+ Period</button>
+              {periods.length>1&&<button onClick={deletePeriod} style={{padding:"5px 10px",fontSize:11,fontWeight:600,background:"#fff",color:RED,border:"1px solid "+RED,borderRadius:3,cursor:"pointer"}}>Del</button>}
+            </div>
+          </div>
+          <div style={{padding:"8px 14px",borderBottom:"1px solid #eee",flexShrink:0}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+              {periods.map((p,i)=>(
+                <button key={i} onClick={()=>{setCurPeriod(i);setCurPlay(0);}} style={{
+                  padding:"4px 10px",fontSize:11,fontWeight:600,borderRadius:3,cursor:"pointer",
+                  background:i===curPeriod?NAVY:"#f0f0f0",color:i===curPeriod?"#fff":"#444",
+                  border:i===curPeriod?"1px solid "+NAVY:"1px solid #ccc",
+                }}>P{p.periodNumber}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{flex:1,overflow:"auto",padding:"8px 10px"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>
+              Plays — {currentPeriod?(currentPeriod.periodName||"Period "+currentPeriod.periodNumber):""}
+            </div>
+            {currentPeriod&&currentPeriod.plays.map((play,i)=>(
+              <div key={i} onClick={()=>setCurPlay(i)} style={{
+                padding:"6px 10px",marginBottom:3,borderRadius:4,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",
+                fontSize:13,fontWeight:i===curPlay?700:400,
+                background:i===curPlay?"#e3ecf7":"transparent",color:i===curPlay?NAVY:"#444",
+                border:i===curPlay?"1px solid "+BLUE+"33":"1px solid transparent",
+              }}>
+                <span>Play {i+1}</span><span style={{fontSize:11,color:"#888"}}>{play.selected.length}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:"10px 14px",borderTop:"1px solid #eee",fontSize:11,color:"#888",flexShrink:0}}>
+            {periods.length} period{periods.length>1?"s":""} · {totalPlays} total plays
+          </div>
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{padding:"10px 20px",background:"#fff",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button disabled={curPlay===0} onClick={()=>setCurPlay(p=>p-1)} style={{width:28,height:28,borderRadius:4,border:"1px solid "+MID_GRAY,background:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,color:curPlay===0?"#ccc":"#444",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+              <div style={{background:NAVY,color:"#fff",borderRadius:4,padding:"4px 16px",fontWeight:800,fontSize:16,minWidth:36,textAlign:"center"}}>{curPlay+1}</div>
+              <button disabled={!currentPeriod||curPlay>=currentPeriod.plays.length-1} onClick={()=>setCurPlay(p=>p+1)} style={{width:28,height:28,borderRadius:4,border:"1px solid "+MID_GRAY,background:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,color:(!currentPeriod||curPlay>=currentPeriod.plays.length-1)?"#ccc":"#444",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+              <div style={{width:1,height:24,background:"#ddd",margin:"0 4px"}}></div>
+              <button onClick={copyPlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:NAVY,border:"1.5px solid "+NAVY}}>Copy Play</button>
+              <button onClick={addBlankPlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:"#444",border:"1.5px solid "+MID_GRAY}}>+ Blank Play</button>
+              <button onClick={deletePlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:RED,border:"1.5px solid "+RED}}>Delete Play</button>
+            </div>
+            <div style={{display:"flex",gap:0}}>
+              {[["all","All"],["sob","SOB"],["pos","POS"]].map(function(pair){
+                var key=pair[0],label=pair[1];
+                return(<button key={key} onClick={()=>setViewMode(key)} style={{
+                  padding:"6px 16px",fontSize:12,fontWeight:700,cursor:"pointer",
+                  background:viewMode===key?NAVY:"#f0f0f0",color:viewMode===key?"#fff":"#444",
+                  border:"1px solid "+(viewMode===key?NAVY:"#ccc"),
+                  borderRadius:key==="all"?"4px 0 0 4px":key==="pos"?"0 4px 4px 0":"0",
+                }}>{label}</button>);
+              })}
+            </div>
+          </div>
+          <div style={{flex:1,overflow:"auto",padding:20}}>
+            <div style={{marginBottom:10,fontSize:13,color:"#666",fontWeight:600}}>
+              {totalSelectedCount} player{totalSelectedCount!==1?"s":""} tagged on Play {curPlay+1}
+            </div>
+            {renderPlayerArea()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(React.createElement(PracticeRepTagger),document.getElementById("root"));
+</script>
+</body>
+</html>
