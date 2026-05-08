@@ -214,7 +214,7 @@ function PracticeRepTagger(){
   const exportCSV=()=>{
     const rows=["PeriodNumber,Period,Play,Offense,Defense"];
     periods.forEach(period=>{period.plays.forEach((play,pi)=>{
-      const jerseys=play.selected.map(id=>idToJersey[id]||"").filter(Boolean).sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0)).join(";");
+      const jerseys=play.selected.map(id=>idToJersey[id]||"").filter(Boolean).map(j=>j.length===1?"0"+j:j).sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0)).join(";");
       const off=userSOB==="OFF"?jerseys:"";const def=userSOB==="DEF"?jerseys:"";
       rows.push(period.periodNumber+","+period.periodName+","+(pi+1)+","+off+","+def);
     });});
