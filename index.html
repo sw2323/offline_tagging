@@ -103,7 +103,7 @@ const SPT_ORDER=["K","PK","P","PT","LS"];
 const SOB_LABELS={OFF:"Offense",DEF:"Defense",SPT:"Special Teams"};
 const SOB_COLORS={OFF:"#1565c0",DEF:"#c62828",SPT:"#6a1b9a"};
 
-function makeDefaultPeriod(n){return{periodNumber:n,periodName:"",plays:[{selected:[]}]};}
+function makeDefaultPeriod(n){return{periodNumber:n,periodName:"",plays:[{selected:[],flagged:false}]};}
 
 const STORE_KEY="rmc-rep-tagger-2026";
 function saveToStorage(d){try{localStorage.setItem(STORE_KEY,JSON.stringify(d));}catch{}}
@@ -162,6 +162,7 @@ function PracticeRepTagger(){
   const[viewMode,setViewMode]=useState("all");
   const[loaded,setLoaded]=useState(false);
   const[showResetConfirm,setShowResetConfirm]=useState(false);
+  const[showDeleteConfirm,setShowDeleteConfirm]=useState(false);
   const[rosterFilter,setRosterFilter]=useState("ALL");
 
   useEffect(()=>{
@@ -199,8 +200,9 @@ function PracticeRepTagger(){
   };
   const clearAll=()=>{setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays[curPlay].selected=[];return n;});};
 
-  const addBlankPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:[]});return n;});setCurPlay(len);};
-  const copyPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:n[curPeriod].plays[curPlay].selected.slice()});return n;});setCurPlay(len);};
+  const addBlankPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:[],flagged:false});return n;});setCurPlay(len);};
+  const copyPlay=()=>{const len=currentPeriod.plays.length;setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.push({selected:n[curPeriod].plays[curPlay].selected.slice(),flagged:false});return n;});setCurPlay(len);};
+  const toggleFlag=()=>{setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays[curPlay].flagged=!n[curPeriod].plays[curPlay].flagged;return n;});};
   const deletePlay=()=>{if(currentPeriod.plays.length<=1){clearAll();return;}const ni=Math.min(curPlay,currentPeriod.plays.length-2);setPeriods(prev=>{const n=JSON.parse(JSON.stringify(prev));n[curPeriod].plays.splice(curPlay,1);return n;});setCurPlay(ni);};
 
   const addPeriod=()=>{const mx=Math.max.apply(null,periods.map(p=>p.periodNumber).concat([0]));const len=periods.length;setPeriods(prev=>prev.concat([makeDefaultPeriod(mx+1)]));setCurPeriod(len);setCurPlay(0);};
@@ -357,6 +359,7 @@ function PracticeRepTagger(){
   return(
     <div style={{height:"100vh",background:"#f0f1f3",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {showResetConfirm&&<ConfirmModal message="Reset entire session? This clears all periods, plays, and jersey edits. This cannot be undone." confirmLabel="Reset" onConfirm={doReset} onCancel={()=>setShowResetConfirm(false)}/>}
+      {showDeleteConfirm&&<ConfirmModal message={"Delete Play "+(curPlay+1)+"? This removes the play and its tagged players."} confirmLabel="Delete" onConfirm={()=>{deletePlay();setShowDeleteConfirm(false);}} onCancel={()=>setShowDeleteConfirm(false)}/>}
       <div style={{background:NAVY,padding:"10px 20px",color:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
           <div style={{fontWeight:800,fontSize:16,letterSpacing:0.5}}>PRACTICE REP TAGGER</div>
@@ -366,6 +369,7 @@ function PracticeRepTagger(){
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={exportCSV} style={{padding:"6px 16px",background:"#2e7d32",color:"#fff",border:"none",borderRadius:4,cursor:"pointer",fontWeight:600,fontSize:13}}>Export CSV</button>
+          <button onClick={()=>setPhase("roster")} style={{padding:"6px 14px",background:"rgba(255,255,255,0.12)",color:"#fff",border:"1px solid rgba(255,255,255,0.25)",borderRadius:4,cursor:"pointer",fontWeight:600,fontSize:12}}>Roster</button>
           <button onClick={()=>setShowResetConfirm(true)} style={{padding:"6px 14px",background:"rgba(255,255,255,0.12)",color:"#fff",border:"1px solid rgba(255,255,255,0.25)",borderRadius:4,cursor:"pointer",fontWeight:600,fontSize:12}}>Reset</button>
         </div>
       </div>
@@ -410,7 +414,7 @@ function PracticeRepTagger(){
                 background:i===curPlay?"#e3ecf7":"transparent",color:i===curPlay?NAVY:"#444",
                 border:i===curPlay?"1px solid "+BLUE+"33":"1px solid transparent",
               }}>
-                <span>Play {i+1}</span><span style={{fontSize:11,color:"#888"}}>{play.selected.length}</span>
+                <span>Play {i+1}{play.flagged?" \u2691":""}</span><span style={{fontSize:11,color:play.flagged?"#e65100":"#888"}}>{play.flagged?"\u2691 ":""}{play.selected.length}</span>
               </div>
             ))}
           </div>
@@ -427,18 +431,23 @@ function PracticeRepTagger(){
               <div style={{width:1,height:24,background:"#ddd",margin:"0 4px"}}></div>
               <button onClick={copyPlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:NAVY,border:"1.5px solid "+NAVY}}>Copy Play</button>
               <button onClick={addBlankPlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:"#444",border:"1.5px solid "+MID_GRAY}}>+ Blank Play</button>
-              <button onClick={deletePlay} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:RED,border:"1.5px solid "+RED}}>Delete Play</button>
+              <div style={{width:1,height:24,background:"#ddd",margin:"0 4px"}}></div>
+              <button onClick={toggleFlag} style={{padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:4,cursor:"pointer",background:currentPlay&&currentPlay.flagged?"#ff9800":"#fff",color:currentPlay&&currentPlay.flagged?"#fff":"#e65100",border:"1.5px solid "+(currentPlay&&currentPlay.flagged?"#ff9800":"#e65100")}}>{currentPlay&&currentPlay.flagged?"\u2691 Flagged":"\u2690 Flag"}</button>
             </div>
-            <div style={{display:"flex",gap:0}}>
-              {[["all","All"],["sob","SOB"],["pos","POS"]].map(function(pair){
-                var key=pair[0],label=pair[1];
-                return(<button key={key} onClick={()=>setViewMode(key)} style={{
-                  padding:"6px 16px",fontSize:12,fontWeight:700,cursor:"pointer",
-                  background:viewMode===key?NAVY:"#f0f0f0",color:viewMode===key?"#fff":"#444",
-                  border:"1px solid "+(viewMode===key?NAVY:"#ccc"),
-                  borderRadius:key==="all"?"4px 0 0 4px":key==="pos"?"0 4px 4px 0":"0",
-                }}>{label}</button>);
-              })}
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{display:"flex",gap:0}}>
+                {[["all","All"],["sob","SOB"],["pos","POS"]].map(function(pair){
+                  var key=pair[0],label=pair[1];
+                  return(<button key={key} onClick={()=>setViewMode(key)} style={{
+                    padding:"6px 16px",fontSize:12,fontWeight:700,cursor:"pointer",
+                    background:viewMode===key?NAVY:"#f0f0f0",color:viewMode===key?"#fff":"#444",
+                    border:"1px solid "+(viewMode===key?NAVY:"#ccc"),
+                    borderRadius:key==="all"?"4px 0 0 4px":key==="pos"?"0 4px 4px 0":"0",
+                  }}>{label}</button>);
+                })}
+              </div>
+              <div style={{width:1,height:24,background:"#ddd",margin:"0 4px"}}></div>
+              <button onClick={()=>setShowDeleteConfirm(true)} style={{padding:"6px 14px",fontSize:11,fontWeight:600,borderRadius:4,cursor:"pointer",background:"#fff",color:"#999",border:"1.5px solid #ccc"}}>Delete Play</button>
             </div>
           </div>
           <div style={{flex:1,overflow:"auto",padding:20}}>
